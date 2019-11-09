@@ -1,0 +1,120 @@
+---
+title: "Time Series"
+author: "Sadikov Ibrokhim"
+date: "November 4, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(forecast)
+library(timeSeries)
+library(rugarch)
+library(data.table)
+library(dplyr)
+library(tidyverse)
+```
+
+
+
+```{r cars}
+data <- fread("ATT_Twitter.csv", sep=",", header=T, strip.white = T, na.strings = c("NA","NaN","","?"))
+```
+
+
+###4.1.	(5 points) Paste the plot of the time series in the space below:
+```{r}
+x = ts(data[,2],  frequency=24) #start=c(06,16), end=c(10,15),
+plot(x)
+```
+
+###4.2.	(10 points) Determine if this time series is a random walk process?
+
+**The p-value is 0.01 which suggest the rejection of the null hypothesis. Therefore, this time series is not random walk.**
+```{r}
+PP.test(x) # Phillips-Perron Unit Root Test
+```
+
+###4.3.	(20 points) Use ACF and PACF to determine if the times series has any MA or AR process. If so, what is (are) the order(s)? Please paste the ACF and PACF plots in the space below:
+
+**ACF is used to see if MA process exists or PACF is used for identifying AR process. Both charts proves to have AR and MA process. In the first chart of ACF we can see that correlation drops after the first log while in the second chart of PACF we can see insignificant correlations**
+```{r}
+par(mfrow = c(1,2))
+acf(x,main='ACF AT&T Twitter')
+pacf(x,main='PACF AT&T Twitter')
+```
+
+###4.4.	(5 points) Use auto.arima function to determine the best model ARIMA model for this data. What is the best order? 
+** Best model: ARIMA(0,0,1)(1,0,0)[24] with non-zero mean**
+```{r}
+ARIMAfit = auto.arima(x, approximation=FALSE,trace=TRUE)
+summary(ARIMAfit)
+```
+
+##5.	Use “rugarch” package to build ARCH and GARCH models. Use “sGARCH” in the specification.
+
+###5.1.	(5 points) First use armaOrder(0,0). What are the values of AIC and BIC?
+
+**Akaike       -3.4547**
+**Bayes        -3.4538**
+**Shibata      -3.4547**
+**Hannan-Quinn -3.4544**
+```{r}
+spec1=ugarchspec(variance.model=list(model="sGARCH"),
+                 mean.model=list(armaOrder=c(0,0)))
+fit1=ugarchfit(data=x,spec=spec1)
+show(fit1)
+```
+
+###5.2.	(5 points) Now use armaOrder(0,1). What are the values of AIC and BIC?
+**Akaike       -3.4451**
+**Bayes        -3.4348**
+```{r}
+spec2=ugarchspec(variance.model=list(model="sGARCH"),
+                 mean.model=list(armaOrder=c(0,1)))
+fit2=ugarchfit(data=x,spec=spec2,solver = "hybrid")
+show(fit2)
+```
+
+##6.	Use “rugarch” package to build ARCH and GARCH models. Use “apARCH” in the specification.
+
+###6.1.	(5 points) First use armaOrder(0,0). What are the values of AIC and BIC?
+**Akaike   -3.6601**
+**Bayes    -3.6478**
+```{r}
+spec3=ugarchspec(variance.model=list(model="apARCH"),
+                 mean.model=list(armaOrder=c(0,0)))
+fit3=ugarchfit(data=x,spec=spec3,solver = "hybrid")
+show(fit3)
+```
+
+###6.2.	(5 points) Now use armaOrder(0,1). What are the values of AIC and BIC?
+**Akaike  -3.6672**
+**Bayes   -3.6529**
+
+```{r}
+spec4=ugarchspec(variance.model=list(model="apARCH"),
+                 mean.model=list(armaOrder=c(0,1)))
+fit4=ugarchfit(data=x,spec=spec4 ,solver = "hybrid")
+show(fit4)
+```
+
+###6.3.	(10 points) Using scholarly articles, explain what is the main difference between apARCH (asymmetric power ARCH) and simple GARCH models?  
+ARCH (Auto-regressive Conditional Heteoskedastic Model) is the simplest model in stochastic variance modeling which was developed by Engle (1982).Then later Ding, Granger and Engle (1993) brought APARCH (Asymmetric Power ARCH Model).This model can well express the Fat tails, Excess kurtosis and Leverage Effects. The Generalized Auto-Regressive Conditional Heteoskedastic Model is based on an infinite ARCH specification. It improves the ARCH model by reducing the number of
+estimated parameters from infinity to two.  The results of one paper written by Michael McKenzie suggests that in the presence of symmetric responses to innovations in the market, the GARCH(1,1) model is preferred. Where asymmetry is present, than the inclusion of a leverage term is worthwhile as long as a power term is also included then apARCH model is selected. So GARCH is unable to express the Leverage Effects. The APARCH model, as the GARCH model, additionally captures asymmetry in return volatility. That is, volatility tends to increase more when returns are negative, as compared to positive returns of the same magnitude.GARCH models are also parametric models. Standard GARCH models assume that positive and negative error terms have asymmetric effect on the volatility.The conditional variance of GARCH model is not only a linear function of lagged squared residuals but also a linear function of lagged conditional variance.
+
+GARCH model has greater applicability for easy computation. But the GARCH model has drawbacks. First, GARCH model cannot explain the negative correlation between the fluctuations in stock returns.n. Second, the GARCH model assumes all coefficients are greater than zero, which also makes the model hard to apply.APARCH model includes the ARCH and GARCH models, by changing the parameters we can get different models.
+
+REFERENCE 
+
+[1]Ding, D. (2019). Modeling of Market Volatility with APARCH Model. [online] Diva-portal.org. Available at: https://www.diva-portal.org/smash/get/diva2:417608/FULLTEXT01.pdf [Accessed 7 Nov. 2019].
+
+[2]Mason.gmu.edu. (2019). The APARCH Model. [online] Available at: http://mason.gmu.edu/~jgentle/csi779/14s/L09_Chapter4_14s.pdf [Accessed 7 Nov. 2019].
+
+###7.	(30 points) Based on your analysis in 5 and 6, which model specification you would choose for predicting the future values? How the values of AIC and BIC influence your decision? 
+
+In order to choose the right model specification which was conducted above in our emperical results we will refer to AIC and BIC scores. The reason why we are going to use spefifically this criterion is as follows. Onces the model is fitted to our time series data, we need to check whether adequate variations in data is explained  by the model which we can refer to also as the to evaluate the prodictive  power of the model specification.One is the Akaike information criterion (AIC), and the other is the Schwartz Bayesian criterion (SBC). The latter is also called the Bayesian information criterion (BIC). Both AIC and BIC have the same explanational power in model evaluation. So the lower the result the better one  model over another. BIC is more adventageous in large samples while AIC is more powerful for samllaer data samples. Howerver, BIC penalizes parameters more severely than AIC. Other than that, AIC  is better for making asymptotically equivalent to cross-validation while, the BIC is good for consistent estimation. So, we can conclude that from the models we saw, we need to select the models that have low AIC and BIC.From the above table we can say that as sGARCH model with armaOrder=c(0,1) has the lowest AIC and BIC values. So armaorder(0,1) is the most preferred model for predicting the future value.
+
+
+
+
+
